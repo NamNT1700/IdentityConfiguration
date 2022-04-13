@@ -110,7 +110,7 @@ namespace IdentityConfigurationSample.Controllers
         }
 
         [HttpGet("GetUser")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetUser(string usename, string password)
         {
             try
@@ -158,25 +158,28 @@ namespace IdentityConfigurationSample.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpPost]
+        [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDTO login)
         {
             try
             {
-                var userExist = await _userManager.FindByNameAsync(login.UseName);
+                var userExist = await _userManager.FindByNameAsync(login.Usename);
                 if (userExist == null)
                 {
                     return BadRequest("wrong user name");
                 }
-                var truePass = await _userManager.CheckPasswordAsync(userExist,login.PassWord);
+                var truePass = await _userManager.CheckPasswordAsync(userExist,login.Password);
                 if (truePass == false)
                 {
                     return BadRequest("wrong pass");
                 }
                 TokenManager tokenGenerate = new TokenManager(_configuration,_roleManager,_userManager);
                 var token = await tokenGenerate.GenerateToken(userExist);
-                return Ok($"token user is: \n{token}");
+                var tkens = new Tokens();
+                //var result = tkens.accessToken;
+                tkens.accessToken = token;
+                return Ok(tkens);
             }
             catch (Exception ex)
             {

@@ -17,6 +17,7 @@ namespace IdentityConfigurationSample.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize (Roles = "Admin")]
+    [AllowAnonymous]
     public class RoleControllers : ControllerBase
     {
         private readonly ILogger<UserControllers> _logger;
