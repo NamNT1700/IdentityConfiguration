@@ -13,10 +13,10 @@ namespace IdentityConfigurationSample.Map
         public Mapping()
         {
             CreateMap<CreateUserDTO, IdentityUser>();
-            CreateMap<UpdateUsersDTO, IdentityUser>();
+            CreateMap<UpdateUserDTO, IdentityUser>();
             CreateMap<IdentityUser, UserDTO>();
             CreateMap<IdentityRole, RoleDTO>();
-            CreateMap<UpdateRoleDTO, IdentityRole>().ForMember(name=> name.Name,newName=>newName.MapFrom(newName=>newName.newName));
+            CreateMap<UpdateRoleDTO, IdentityRole>().ForMember(name=> name.Name,newRole=>newRole.MapFrom(newName=>newName.newRole));
 
         }
     }

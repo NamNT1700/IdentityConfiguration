@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,14 +22,13 @@ namespace IdentityConfigurationSample.Authentication
             _roleManager = roleManager;
             _userManager = userManager;
         }
-
-        public async Task<string> GenerateToken (IdentityUser user) 
+        
+        public async Task<string> GenerateAccessToken (IdentityUser user) 
         {
             var role = await _userManager.GetRolesAsync(user);
             var userClaim = new List<Claim>
             {
-                new Claim("UserName", user.UserName),
-                new Claim("Email", user.Email)
+                
             };
             foreach(var roleUser in role)  //add role for claim
             {
@@ -41,11 +41,20 @@ namespace IdentityConfigurationSample.Authentication
             var tokenDescription = new SecurityTokenDescriptor
             {
                 Subject = claimsIdentity,
-                Expires = DateTime.UtcNow.AddMinutes(30),
+                Expires = DateTime.UtcNow.AddMinutes(60),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(secretkeyBytes),SecurityAlgorithms.HmacSha256Signature)
             };          
-            var token = await Task.Run(()=> jwtTokenHandle.CreateToken(tokenDescription));
-            return jwtTokenHandle.WriteToken(token);
+            var accessToken = await Task.Run(()=> jwtTokenHandle.CreateToken(tokenDescription));
+            return jwtTokenHandle.WriteToken(accessToken);
+        }
+        public string GenerateRefreshToken()
+        {
+            var random = new byte[64];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(random);
+                return Convert.ToBase64String(random);
+            }
         }
     }
 }

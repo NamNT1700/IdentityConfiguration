@@ -15,16 +15,18 @@ using System;
 using System.Text;
 using System.IO;
 using Microsoft.Extensions.FileProviders;
+using System.Security.Claims;
 
 namespace IdentityConfigurationSample
 {
     public class Startup
     {
+        
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
-
+        
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -38,9 +40,22 @@ namespace IdentityConfigurationSample
             services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders();
             services.AddAutoMapper(typeof(Startup));
-            
+            services.AddCors(options =>
+            {
+
+                options.AddPolicy(name: "Origins",
+                                  builder =>
+                                  {
+                                      builder.WithOrigins("http://http://localhost:5000/", "http://localhost:4200/")
+                                      .AllowAnyMethod()
+                                      .AllowAnyHeader()
+                                      .AllowAnyOrigin();
+                                      
+                                      
+                                  });
+            });
             services.AddControllers();
-           
+            services.Configure<IdentityOptions>(options => options.ClaimsIdentity.UserIdClaimType = ClaimTypes.Name);
             services.AddSwaggerGen(c => {
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
@@ -98,25 +113,22 @@ namespace IdentityConfigurationSample
               };
           });
         }
-
+        
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
+        { 
+           
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
-            //app.UseFileServer(new FileServerOptions {
-            //    FileProvider = new PhysicalFileProvider(
-            //        Path.Combine(Directory.GetCurrentDirectory(), "StaticFiles")),
-            //    RequestPath = "/StaticFiles",
-            //    EnableDefaultFiles = true
-            //});
+            
             app.UseHttpsRedirection();
 
             app.UseAuthentication();
             app.UseRouting();
+            app.UseCors("Origins");
             app.UseAuthorization();
             app.UseSwagger();
             app.UseSwaggerUI(c => {

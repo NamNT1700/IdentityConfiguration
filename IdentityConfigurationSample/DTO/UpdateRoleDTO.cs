@@ -12,6 +12,6 @@ namespace IdentityConfigurationSample.DTO
     }
     public class UpdateRoleDTO
     {
-        public string newName { get; set; }
+        public string newRole { get; set; }
     }
 }

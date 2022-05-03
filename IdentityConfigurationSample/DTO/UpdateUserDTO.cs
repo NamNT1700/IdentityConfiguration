@@ -7,12 +7,12 @@ namespace IdentityConfigurationSample.DTO
 {
     public class UpdateUserData
     {
-        public string UseName { get; set; }
-        public string PassWord { get; set;}
-        public UpdateUsersDTO UpdateUsersDTO { get; set; }
+        public string UserName { get; set; }
+        //public string PassWord { get; set;}
+        public UpdateUserDTO UpdateUserDTO { get; set; }
       
     }
-    public class UpdateUsersDTO
+    public class UpdateUserDTO
     {
         public  string PhoneNumber { get; set; }
         public  string Email { get; set; }

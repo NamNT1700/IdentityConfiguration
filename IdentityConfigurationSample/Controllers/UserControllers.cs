@@ -2,7 +2,9 @@
 using IdentityConfigurationSample.Authentication;
 using IdentityConfigurationSample.Data;
 using IdentityConfigurationSample.DTO;
+using IdentityConfigurationSample.Res;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -18,9 +20,11 @@ using System.Threading.Tasks;
 
 namespace IdentityConfigurationSample.Controllers
 {
+
     [Route("api/[controller]")]
+    [EnableCors("Origins")]
     [ApiController]
-    [Authorize(Roles = "Admin,User")]
+    //[Authorize(Roles = "Admin,User")]
     //[Authorize]
     //[Authorize(Roles = RolesStorage.User)]
     public class UserControllers : ControllerBase
@@ -29,8 +33,9 @@ namespace IdentityConfigurationSample.Controllers
         private readonly ILogger<UserControllers> _logger;
         private UserManager<IdentityUser> _userManager;
         private RoleManager<IdentityRole> _roleManager;
-        public IConfiguration _configuration;
-        public IMapper _mapper;
+        private IConfiguration _configuration;
+        private IMapper _mapper;
+        //private IErrorResponse _errorResponse;
         public UserControllers(ILogger<UserControllers> logger, UserManager<IdentityUser> userManager, IMapper mapper,
                                 RoleManager<IdentityRole> roleManager, IConfiguration configuration)
         {
@@ -39,31 +44,51 @@ namespace IdentityConfigurationSample.Controllers
             _roleManager = roleManager;
             _mapper = mapper;
             _configuration = configuration;
+            //_errorResponse = errorResponse;
         }
         [HttpPost("RegisterUser")]
+        
         [AllowAnonymous]
         public async Task<IActionResult> RegisterUser([FromBody] CreateUserDTO user)
         {
             try
             {
-                var userExist = await _userManager.FindByNameAsync(user.UserName);
+                SuccessRespone<CreateUserDTO> successRes = new SuccessRespone<CreateUserDTO>();
+                ErrorRespone errorRes = new ErrorRespone();
+                IdentityUser userExist = await _userManager.FindByNameAsync(user.UserName);
                 if (userExist != null)
                 {
-                    return BadRequest("user already exist");
+                   // errorRes.Description.Add( "username already exist");
+                    return BadRequest(errorRes);
                 }
-                var newUser = _mapper.Map<IdentityUser>(user);
-                var result = await _userManager.CreateAsync(newUser, user.PassWord);
-
+                 IdentityUser emailExist = await _userManager.FindByEmailAsync(user.Email);
+                if (emailExist != null)
+                {
+                   // errorRes.Description.Add("email already use");
+                    return BadRequest(errorRes);
+                }
+                IdentityUser newUser = _mapper.Map<IdentityUser>(user);
+                //for (int i = 1; i <= 100; i++)
+                //{
+                //    IdentityResult users = await _userManager.CreateAsync(new IdentityUser { UserName = $"duyngu{i}", Email = $"nguduy{i}" }, user.PassWord);
+                //}
+                IdentityResult result = await _userManager.CreateAsync(newUser, user.PassWord);
+                //return Ok(successRes);
                 if (result.Succeeded)
                 {
+                    successRes.data = user;
                     if (await _roleManager.FindByNameAsync(RolesStorage.User) == null)
-                       await _roleManager.CreateAsync(new IdentityRole(RolesStorage.User));
+                        await _roleManager.CreateAsync(new IdentityRole(RolesStorage.User));
                     await _userManager.AddToRoleAsync(newUser, RolesStorage.User);
-                    return Ok(new { Description = "Register successful", result = 1, });
+                    return Ok(successRes);
                 }
                 else
                 {
-                    return BadRequest(result.Errors);
+                    //foreach (var error in result.Errors)
+                    //{
+                    //    //errorRes.Description.Add(Convert.ToString(error));
+                    //}
+                    return BadRequest(errorRes);
                 }
             }
             catch (Exception ex)
@@ -73,31 +98,33 @@ namespace IdentityConfigurationSample.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpPut("UpdateUser")]
-        public async Task<IActionResult> UpdateUser([FromBody] UpdateUserData updateUsersData)
+        [HttpPut("User")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateUser([FromBody] UpdateUserData updateUserData)
         {
             try
             {
-                var user = await _userManager.FindByNameAsync(updateUsersData.UseName);
+                SuccessRespone<UpdateUserData> successRes = new SuccessRespone<UpdateUserData>();
+                ErrorRespone errorRes = new ErrorRespone();
+                IdentityUser user = await _userManager.FindByNameAsync(updateUserData.UserName);
                 if (user == null)
                 {
-                    return BadRequest("wrong username");
+
+                    //errorRes.Description.Add("wrong user name");
+                    return BadRequest(errorRes) ;
                 }
-                var isUserValid = await _userManager.CheckPasswordAsync(user, updateUsersData.PassWord);
-                if (isUserValid == false)
+                  _mapper.Map(updateUserData.UpdateUserDTO, user);
+                IdentityUser isEmailExist = await _userManager.FindByEmailAsync(updateUserData.UpdateUserDTO.Email);
+                if (isEmailExist != null && isEmailExist!=user)
                 {
-                    return BadRequest("wrong password");
+                    //errorRes.Description.Add("this email already use for another account");
+                    return BadRequest(errorRes);
                 }
-                user = _mapper.Map(updateUsersData.UpdateUsersDTO, user);
-                var isEmailExist = await _userManager.FindByEmailAsync(updateUsersData.UpdateUsersDTO.Email);
-                if (isEmailExist != null)
-                {
-                    return BadRequest("email already exist");
-                }
-                var result = await _userManager.UpdateAsync(user);
+                IdentityResult result = await _userManager.UpdateAsync(user);
                 if (result.Succeeded)
                 {
-                    return Ok(new { Description = "Update successful", result = 1 });
+                    successRes.data = updateUserData;
+                    return Ok(successRes);
                 }
                 return BadRequest(result.Errors);
             }
@@ -109,24 +136,24 @@ namespace IdentityConfigurationSample.Controllers
             }
         }
 
-        [HttpGet("GetUser")]
-        [Authorize(Roles = "User")]
-        public async Task<IActionResult> GetUser(string usename, string password)
+        [HttpGet("User")]
+        //[Authorize(Roles = "User")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUser(string id)
         {
             try
             {
-                var user = await _userManager.FindByNameAsync(usename);
+                SuccessRespone<UserDTO> successRes = new SuccessRespone<UserDTO>();
+                ErrorRespone errorRes = new ErrorRespone();
+                IdentityUser user = await _userManager.FindByIdAsync(id);
                 if (user == null)
                 {
-                    return BadRequest("wrong username");
-                }
-                var trueUser = await _userManager.CheckPasswordAsync(user, password);
-                if (trueUser == false)
-                {
-                    return BadRequest("wrong password");
-                }
-                var result = _mapper.Map<UserDTO>(user);
-                return Ok(result);
+                    //errorRes.Description.Add("user not exist");
+                    return BadRequest(errorRes);
+                } 
+                UserDTO userData = _mapper.Map<UserDTO>(user);
+                successRes.data = userData;
+                return Ok(successRes);
             }
             catch (Exception ex)
             {
@@ -135,21 +162,22 @@ namespace IdentityConfigurationSample.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpDelete("DeleteUser")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteUser(string useName) 
+        
+        [HttpGet("AllUsers")]
+        //_myAllowSpecificOrigins
+        
+        [Authorize(Roles = "User")]
+        //[AllowAnonymous]
+        public async Task<IActionResult> GetAllUser()
         {
             try
             {
-                var userExelt = await _userManager.FindByNameAsync(useName);
-                if (userExelt == null)
-                {
-                    return BadRequest("wrong user name");
-                }
-                var result = await  _userManager.DeleteAsync(userExelt);
-                if(result.Succeeded)  return Ok(new { Description = "Delete successful", result = 1 });
-                return BadRequest(result.Errors);
-
+                SuccessRespone<IEnumerable<UserDTO>> successRes = new SuccessRespone<IEnumerable<UserDTO>>();
+                //IList<IdentityUser> users = await _userManager.GetUsersInRoleAsync("User");
+                IList<IdentityUser> users =   _userManager.Users.ToList();
+                IEnumerable<UserDTO> result =  _mapper.Map<IEnumerable<UserDTO>>(users);
+                successRes.data = result;
+                return Ok(successRes);
             }
             catch (Exception ex)
             {
@@ -158,28 +186,70 @@ namespace IdentityConfigurationSample.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpPost("login")]
+        [HttpDelete("User")]
+        //[Authorize(Roles = "Admin")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteUser([FromBody] DeleteUsersDTO deleteUsersDTO)
+        {
+            try
+            {
+                SuccessRespone<DeleteUsersDTO> successRes = new SuccessRespone<DeleteUsersDTO>();
+                ErrorRespone errorRes = new ErrorRespone();
+                List<string> deleteFail = new List<string>();
+                foreach (string id in deleteUsersDTO.Ids)
+                {
+                    IdentityUser userExist = await _userManager.FindByIdAsync(id);
+                    if (userExist == null)
+                        deleteFail.Add(id);
+
+                    else await _userManager.DeleteAsync(userExist);
+
+                }
+                if (deleteFail.Count == 0) 
+                    return Ok(successRes);
+                else
+                {
+                    //errorRes.Description.Add("can't delete user");
+                    return BadRequest(errorRes);
+                }
+                
+            }
+            catch (Exception ex)
+            {
+                if (ex.InnerException != null)
+                    return BadRequest($"Ex: {ex.Message}, Inner: {ex.InnerException.Message} ");
+                return BadRequest(ex.Message);
+            }
+        }
+        [HttpPost("Login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDTO login)
         {
             try
             {
-                var userExist = await _userManager.FindByNameAsync(login.Usename);
+                SuccessRespone<Tokens> successRes = new SuccessRespone<Tokens>();
+                ErrorRespone errorRes = new ErrorRespone();
+                errorRes.Description = new List<string>();
+                IdentityUser userExist = await _userManager.FindByNameAsync(login.Username);
                 if (userExist == null)
                 {
-                    return BadRequest("wrong user name");
+                    errorRes.Description.Add("username not exist");
+                    return BadRequest(errorRes);
                 }
-                var truePass = await _userManager.CheckPasswordAsync(userExist,login.Password);
+                bool truePass = await _userManager.CheckPasswordAsync(userExist,login.Password);
                 if (truePass == false)
                 {
-                    return BadRequest("wrong pass");
+                    errorRes.Description.Add("wrong password");
+                    return BadRequest(errorRes);
                 }
-                TokenManager tokenGenerate = new TokenManager(_configuration,_roleManager,_userManager);
-                var token = await tokenGenerate.GenerateToken(userExist);
-                var tkens = new Tokens();
-                //var result = tkens.accessToken;
-                tkens.accessToken = token;
-                return Ok(tkens);
+                TokenManager accessTokenGen = new TokenManager( _configuration,_roleManager,_userManager);
+                string refreshToken = accessTokenGen.GenerateRefreshToken();
+                string accessToken = await accessTokenGen.GenerateAccessToken(userExist);
+                Tokens tokens = new Tokens();
+                tokens.accessToken = accessToken;
+                tokens.refreshToken = refreshToken;
+                successRes.data = tokens;
+                return Ok(successRes);
             }
             catch (Exception ex)
             {
@@ -189,7 +259,27 @@ namespace IdentityConfigurationSample.Controllers
             }
 
         }
-       
+        //[HttpPost("AddClaim")]
+        //[AllowAnonymous]
+        //public async Task<IActionResult> AddClaim(string usenam )//, [FromBody] Claim claim)
+        //{
+        //    try
+        //    {
+        //        var userExist = await _userManager.FindByNameAsync(usenam);
+        //        if (userExist == null)
+        //        {
+        //            return BadRequest("wrong user name");
+        //        }
+        //        var addcalim = await _userManager.AddClaimAsync(userExist, new Claim("User", "User"));
+        //        return Ok(new { Description = "Add Claim successful", result = 1 });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        if (ex.InnerException != null)
+        //            return BadRequest($"Ex: {ex.Message}, Inner: {ex.InnerException.Message} ");
+        //        return BadRequest(ex.Message);
+        //    }
+        //}
 
     }
 }

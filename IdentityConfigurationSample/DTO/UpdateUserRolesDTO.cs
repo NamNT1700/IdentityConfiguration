@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace IdentityConfigurationSample.Data
 {
-    public class UserNameDTO
+    public class UserData
     {
-        public string UseName { get; set; }
+        public string UserName { get; set; }
         public UpdateUserRolesDTO UpdateUserRolesDTO { get; set; }
     }
     public class UpdateUserRolesDTO

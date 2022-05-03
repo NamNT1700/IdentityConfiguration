@@ -7,7 +7,7 @@ namespace IdentityConfigurationSample.DTO
 {
     public class LoginDTO
     {
-        public string Usename { get; set; }
+        public string Username { get; set; }
         public string Password { get; set; }
     }
 }

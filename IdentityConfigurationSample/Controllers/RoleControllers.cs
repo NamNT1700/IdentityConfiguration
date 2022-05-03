@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using IdentityConfigurationSample.Data;
 using IdentityConfigurationSample.DTO;
+using IdentityConfigurationSample.Res;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -38,16 +39,15 @@ namespace IdentityConfigurationSample.Controllers
             try
             {
                 if (!await _roleManager.RoleExistsAsync(role))
-                    return BadRequest("role already exist ");
+                    return BadRequest(new { Description = "role already exist ", result = 0 }); ;
                 var result = await _roleManager.CreateAsync(new IdentityRole(role));
+                
                 if (result.Succeeded)
                 {
-                    return Ok(new { Description = "successful", result = 1 });
+
+                    return Ok();
                 }
-                else
-                {
                     return BadRequest(result.Errors);
-                }
             }
             catch (Exception ex)
             {
@@ -57,25 +57,25 @@ namespace IdentityConfigurationSample.Controllers
             }
         }
 
-        [HttpPut("UpdateRole")]
+        [HttpPut("Role")]
         public async Task<IActionResult> UpdateRole([FromBody] UpdateRoleData role)
         {
             try
             {
-                var roleExist = await _roleManager.FindByNameAsync(role.Name);
+                IdentityRole roleExist = await _roleManager.FindByNameAsync(role.Name);
                 if (roleExist == null)
                 {
                     return BadRequest("wrong role name");
                 }
 
-                var newRoleName = _mapper.Map(role.UpdateRoleDTO, roleExist);
-                var isRoleExist = await _roleManager.FindByNameAsync(role.UpdateRoleDTO.newName);
+                IdentityRole newRoleName = _mapper.Map(role.UpdateRoleDTO, roleExist);
+                IdentityRole isRoleExist = await _roleManager.FindByNameAsync(role.UpdateRoleDTO.newRole);
                 if (isRoleExist != null)
                 {
-                    return BadRequest("role already exist");
+                    return BadRequest(new { Description = "role already exist", result = 0  });
                 }
-                
-                var result = await _roleManager.UpdateAsync(roleExist);
+
+                IdentityResult result = await _roleManager.UpdateAsync(roleExist);
                 if (result.Succeeded)
                 {
                     return Ok(new { Description = "Update successful", result = 1 });
@@ -90,15 +90,15 @@ namespace IdentityConfigurationSample.Controllers
             }
         }
 
-        [HttpGet("GetRole")]
+        [HttpGet("Role")]
         public async Task<IActionResult> GetRole(string roleName)
         {
             try
             {
-                var roleExist = await _roleManager.FindByNameAsync(roleName);
+                IdentityRole roleExist = await _roleManager.FindByNameAsync(roleName);
                 if (roleExist == null)
                 {
-                    return BadRequest("wrong role name");
+                    return BadRequest(new { Description = "role dont exist", result = 0 });
                 }
                 var result = _mapper.Map<RoleDTO>(roleExist);
                 return Ok(result);
@@ -110,22 +110,40 @@ namespace IdentityConfigurationSample.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpPut("AddRoleForUser")]
-        public async Task<IActionResult> AddRoleForUser([FromBody] UserNameDTO UpdateUser)
+        [HttpGet("AllRole")]
+        public async Task<IActionResult> GetAllRole()
         {
             try
             {
-                var user = await _userManager.FindByNameAsync(UpdateUser.UseName);
+                SuccessRespone<IEnumerable<RoleDTO>> successRes = new SuccessRespone<IEnumerable<RoleDTO>>();
+                IList<IdentityRole> roles = _roleManager.Roles.ToList();
+                IEnumerable<RoleDTO> result = _mapper.Map<IEnumerable<RoleDTO>>(roles);
+                successRes.data = result;
+                return Ok(successRes);
+            }
+            catch (Exception ex)
+            {
+                if (ex.InnerException != null)
+                    return BadRequest($"Ex: {ex.Message}, Inner: {ex.InnerException.Message} ");
+                return BadRequest(ex.Message);
+            }
+        }
+        [HttpPut("AddRoleForUser")]
+        public async Task<IActionResult> AddRoleForUser([FromBody] UserData UpdateUser)
+        {
+            try
+            {
+                IdentityUser user = await _userManager.FindByNameAsync(UpdateUser.UserName);
                 if (user == null)
                 {
-                    return BadRequest("user dont exist");
+                    return BadRequest(new { Description = "user dont exist", result = 0 });
                 }
-                var roles = await _userManager.GetRolesAsync(user);
-                foreach (var role in roles)
+                IList<string> roles = await _userManager.GetRolesAsync(user);
+                foreach (string role in roles)
                 {
                    await _userManager.RemoveFromRoleAsync(user, role);
                 }
-                var result = await _userManager.AddToRolesAsync(user, UpdateUser.UpdateUserRolesDTO.Roles);
+                IdentityResult result = await _userManager.AddToRolesAsync(user, UpdateUser.UpdateUserRolesDTO.Roles);
                 if (result.Succeeded)
                     return Ok(new { Description = "add role successful", result = 1 });
                 return BadRequest(result.Errors);
@@ -139,16 +157,16 @@ namespace IdentityConfigurationSample.Controllers
         }
 
         [HttpPut("RemoveRoleForUser")]
-        public async Task<IActionResult> RemoveRoleForUser([FromBody]UserNameDTO UpdateUser)
+        public async Task<IActionResult> RemoveRoleForUser([FromBody] UserData UpdateUser)
         {
             try
             {
-                var user = await _userManager.FindByNameAsync(UpdateUser.UseName);
+                IdentityUser user = await _userManager.FindByNameAsync(UpdateUser.UserName);
                 if (user == null)
                 {
-                    return BadRequest("user dont exilt");
+                    return BadRequest(new { Description = "user dont exilt", result = 0 }); ;
                 }
-                var result = await _userManager.RemoveFromRolesAsync(user, UpdateUser.UpdateUserRolesDTO.Roles);
+                IdentityResult result = await _userManager.RemoveFromRolesAsync(user, UpdateUser.UpdateUserRolesDTO.Roles);
                 if (result.Succeeded)
                     return Ok(new { Description = "remove role successful", result = 1 });
                 return BadRequest(result.Errors);
@@ -166,13 +184,13 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                var roleExilt = await _roleManager.FindByNameAsync(updateUserClaimData.RoleName);
+                IdentityRole roleExilt = await _roleManager.FindByNameAsync(updateUserClaimData.RoleName);
                 if (roleExilt == null)
-                    return BadRequest("role not exist");
+                    return BadRequest(new { Description = "role not exist", result = 0 }); ;
                 foreach (string claimUser in updateUserClaimData.UpdateUserClaimDTO.RoleClaims)
                 {
                     Claim claim = new Claim(claimUser, claimUser);
-                    var addclaim = await _roleManager.AddClaimAsync(roleExilt, claim);
+                    IdentityResult addclaim = await _roleManager.AddClaimAsync(roleExilt, claim);
                 }
                 var result = await _roleManager.GetClaimsAsync(roleExilt);
                 return Ok(result);

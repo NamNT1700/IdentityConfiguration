@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace IdentityConfigurationSample.DTO
 {
-    public class RoleDTO
+    public class DeleteUsersDTO
     {
-        public string Name { get; set; }
+        public List<string> Ids {get; set;}
     }
 }
