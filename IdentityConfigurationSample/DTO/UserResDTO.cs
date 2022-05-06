@@ -11,5 +11,6 @@ namespace IdentityConfigurationSample.DTO
         public string username { get; set; }
         public string password { get; set; }
         public string accsesstoken { get; set; }
+        public IList<string> roles { get; set; }
     }
 }

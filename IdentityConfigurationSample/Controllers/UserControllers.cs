@@ -79,6 +79,7 @@ namespace IdentityConfigurationSample.Controllers
                     userResDTO.id = newUser.Id;
                     userResDTO.password = newUser.PasswordHash;
                     userResDTO.username = newUser.UserName;
+                    userResDTO.roles = await _userManager.GetRolesAsync(newUser);
                     successRespone.data = userResDTO;
                     if (await _roleManager.FindByNameAsync(RolesStorage.User) == null)
                         await _roleManager.CreateAsync(new IdentityRole(RolesStorage.User));
