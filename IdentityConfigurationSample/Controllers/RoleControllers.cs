@@ -115,11 +115,11 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                SuccessRespone<IEnumerable<RoleDTO>> successRes = new SuccessRespone<IEnumerable<RoleDTO>>();
+                SuccessRespone<IEnumerable<RoleDTO>> successRespone = new SuccessRespone<IEnumerable<RoleDTO>>();
                 IList<IdentityRole> roles = _roleManager.Roles.ToList();
                 IEnumerable<RoleDTO> result = _mapper.Map<IEnumerable<RoleDTO>>(roles);
-                successRes.data = result;
-                return Ok(successRes);
+                successRespone.data = result;
+                return Ok(successRespone);
             }
             catch (Exception ex)
             {
@@ -128,25 +128,77 @@ namespace IdentityConfigurationSample.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpPut("AddRoleForUser")]
-        public async Task<IActionResult> AddRoleForUser([FromBody] UserData UpdateUser)
+        [HttpGet("UserRole")]
+        public async Task<IActionResult> GetUserRole(string id)
         {
             try
             {
-                IdentityUser user = await _userManager.FindByNameAsync(UpdateUser.UserName);
+                SuccessRespone<IList<string>> successRespone = new SuccessRespone<IList<string>>();
+                ErrorRespone errorRes = new ErrorRespone();
+                errorRes.Description = new List<string>();
+                IdentityUser user = await _userManager.FindByIdAsync(id);
                 if (user == null)
                 {
-                    return BadRequest(new { Description = "user dont exist", result = 0 });
+                    errorRes.Description.Add("wrong");
+                    return BadRequest(errorRes);
                 }
                 IList<string> roles = await _userManager.GetRolesAsync(user);
-                foreach (string role in roles)
+                successRespone.data = roles;
+                return Ok(successRespone);
+                
+            }
+            catch (Exception ex)
+            {
+                if (ex.InnerException != null)
+                    return BadRequest($"Ex: {ex.Message}, Inner: {ex.InnerException.Message} ");
+                return BadRequest(ex.Message);
+            }
+        }
+        
+        [HttpPut("AddRoleForUser")]
+        public async Task<IActionResult> AddRoleForUser([FromBody] UpdateUserRole UpdateUser)
+        {
+            try
+            {
+                SuccessRespone<IList<string>> successRespone = new SuccessRespone<IList<string>>();
+                ErrorRespone errorRes = new ErrorRespone();
+                errorRes.Description = new List<string>();
+                IdentityUser user = await _userManager.FindByIdAsync(UpdateUser.id);
+                if (user == null)
                 {
-                   await _userManager.RemoveFromRoleAsync(user, role);
+                    errorRes.Description.Add("id null");
+                    return BadRequest(errorRes);
                 }
-                IdentityResult result = await _userManager.AddToRolesAsync(user, UpdateUser.UpdateUserRolesDTO.Roles);
-                if (result.Succeeded)
-                    return Ok(new { Description = "add role successful", result = 1 });
-                return BadRequest(result.Errors);
+                IEnumerable<string> userroles = await _userManager.GetRolesAsync(user);
+                IdentityResult _result = await _userManager.RemoveFromRolesAsync(user, userroles);
+               
+                    IdentityResult result = await _userManager.AddToRolesAsync(user, UpdateUser.UpdateUserRolesDTO.roles);
+                    if (result.Succeeded)
+                    {
+                        successRespone.data = await _userManager.GetRolesAsync(user);
+                        return Ok(successRespone);
+                    }
+                    else
+                    {
+                        foreach (var error in result.Errors)
+                            errorRes.Description.Add(error.Description.ToString());
+                        return BadRequest(errorRes);
+                    }
+                
+                
+
+                //if (!result.Succeeded)
+                //{
+                //    IdentityResult result2 = await _userManager.AddToRolesAsync(user, UpdateUser.UpdateUserRolesDTO.roles);
+                //    if (result2.Succeeded)
+                //    {
+                //        successRespone.data = await _userManager.GetRolesAsync(user);
+                //        return Ok(successRespone);
+                //    }
+
+                //}
+
+
             }
             catch (Exception ex)
             {
@@ -157,16 +209,17 @@ namespace IdentityConfigurationSample.Controllers
         }
 
         [HttpPut("RemoveRoleForUser")]
-        public async Task<IActionResult> RemoveRoleForUser([FromBody] UserData UpdateUser)
+        public async Task<IActionResult> RemoveRoleForUser(string id )
         {
             try
             {
-                IdentityUser user = await _userManager.FindByNameAsync(UpdateUser.UserName);
+                IdentityUser user = await _userManager.FindByIdAsync(id);
                 if (user == null)
                 {
                     return BadRequest(new { Description = "user dont exilt", result = 0 }); ;
                 }
-                IdentityResult result = await _userManager.RemoveFromRolesAsync(user, UpdateUser.UpdateUserRolesDTO.Roles);
+                IList<string> userRoles = await _userManager.GetRolesAsync(user);
+                IdentityResult result = await _userManager.RemoveFromRolesAsync(user, userRoles);
                 if (result.Succeeded)
                     return Ok(new { Description = "remove role successful", result = 1 });
                 return BadRequest(result.Errors);

@@ -5,13 +5,13 @@ using System.Threading.Tasks;
 
 namespace IdentityConfigurationSample.Data
 {
-    public class UserData
+    public class UpdateUserRole
     {
-        public string UserName { get; set; }
+        public string id { get; set; }
         public UpdateUserRolesDTO UpdateUserRolesDTO { get; set; }
     }
     public class UpdateUserRolesDTO
     {
-        public List<string> Roles { get; set; }
+        public List<string> roles { get; set; }
     }
 }

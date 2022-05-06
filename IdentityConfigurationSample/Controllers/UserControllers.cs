@@ -9,13 +9,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
-using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace IdentityConfigurationSample.Controllers
@@ -35,16 +31,14 @@ namespace IdentityConfigurationSample.Controllers
         private RoleManager<IdentityRole> _roleManager;
         private IConfiguration _configuration;
         private IMapper _mapper;
-        //private IErrorResponse _errorResponse;
         public UserControllers(ILogger<UserControllers> logger, UserManager<IdentityUser> userManager, IMapper mapper,
                                 RoleManager<IdentityRole> roleManager, IConfiguration configuration)
-        {
+        { 
             _logger = logger;
             _userManager = userManager;
             _roleManager = roleManager;
             _mapper = mapper;
             _configuration = configuration;
-            //_errorResponse = errorResponse;
         }
         [HttpPost("RegisterUser")]
         
@@ -53,18 +47,19 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                SuccessRespone<CreateUserDTO> successRes = new SuccessRespone<CreateUserDTO>();
+                SuccessRespone<UserResDTO> successRespone = new SuccessRespone<UserResDTO>();
                 ErrorRespone errorRes = new ErrorRespone();
+                errorRes.Description = new List<string>();
                 IdentityUser userExist = await _userManager.FindByNameAsync(user.UserName);
                 if (userExist != null)
                 {
-                   // errorRes.Description.Add( "username already exist");
+                    errorRes.Description.Add( "username already exist");
                     return BadRequest(errorRes);
                 }
                  IdentityUser emailExist = await _userManager.FindByEmailAsync(user.Email);
                 if (emailExist != null)
                 {
-                   // errorRes.Description.Add("email already use");
+                    errorRes.Description.Add("email already use");
                     return BadRequest(errorRes);
                 }
                 IdentityUser newUser = _mapper.Map<IdentityUser>(user);
@@ -73,21 +68,29 @@ namespace IdentityConfigurationSample.Controllers
                 //    IdentityResult users = await _userManager.CreateAsync(new IdentityUser { UserName = $"duyngu{i}", Email = $"nguduy{i}" }, user.PassWord);
                 //}
                 IdentityResult result = await _userManager.CreateAsync(newUser, user.PassWord);
-                //return Ok(successRes);
+                //return Ok(_successResponse);
                 if (result.Succeeded)
                 {
-                    successRes.data = user;
+                    TokenManager accessTokenGen = new TokenManager(_configuration, _roleManager, _userManager);
+                    string accessToken = await accessTokenGen.GenerateAccessToken(newUser);
+                    IList<string> roles = await _userManager.GetRolesAsync(newUser);
+                    UserResDTO userResDTO = new UserResDTO();
+                    userResDTO.accsesstoken = accessToken;
+                    userResDTO.id = newUser.Id;
+                    userResDTO.password = newUser.PasswordHash;
+                    userResDTO.username = newUser.UserName;
+                    successRespone.data = userResDTO;
                     if (await _roleManager.FindByNameAsync(RolesStorage.User) == null)
                         await _roleManager.CreateAsync(new IdentityRole(RolesStorage.User));
                     await _userManager.AddToRoleAsync(newUser, RolesStorage.User);
-                    return Ok(successRes);
+                    return Ok(successRespone);
                 }
                 else
                 {
-                    //foreach (var error in result.Errors)
-                    //{
-                    //    //errorRes.Description.Add(Convert.ToString(error));
-                    //}
+                    foreach (var error in result.Errors)
+                    {
+                        errorRes.Description.Add(error.Description.ToString());
+                    }
                     return BadRequest(errorRes);
                 }
             }
@@ -104,29 +107,34 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                SuccessRespone<UpdateUserData> successRes = new SuccessRespone<UpdateUserData>();
+                SuccessRespone<UpdateUserData> successRespone = new SuccessRespone<UpdateUserData>();
                 ErrorRespone errorRes = new ErrorRespone();
-                IdentityUser user = await _userManager.FindByNameAsync(updateUserData.UserName);
+                IdentityUser user = await _userManager.FindByIdAsync(updateUserData.Id);
                 if (user == null)
-                {
-
+                { 
                     //errorRes.Description.Add("wrong user name");
                     return BadRequest(errorRes) ;
                 }
-                  _mapper.Map(updateUserData.UpdateUserDTO, user);
                 IdentityUser isEmailExist = await _userManager.FindByEmailAsync(updateUserData.UpdateUserDTO.Email);
                 if (isEmailExist != null && isEmailExist!=user)
                 {
                     //errorRes.Description.Add("this email already use for another account");
                     return BadRequest(errorRes);
                 }
+                _mapper.Map(updateUserData.UpdateUserDTO, user);
+                
+                
                 IdentityResult result = await _userManager.UpdateAsync(user);
-                if (result.Succeeded)
-                {
-                    successRes.data = updateUserData;
-                    return Ok(successRes);
-                }
-                return BadRequest(result.Errors);
+
+                    if (result.Succeeded)
+                    {
+                        successRespone.data = updateUserData;
+                        return Ok(successRespone);
+                    }
+                    return BadRequest(result.Errors);
+                    
+                
+                
             }
             catch (Exception ex)
             {
@@ -143,7 +151,7 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                SuccessRespone<UserDTO> successRes = new SuccessRespone<UserDTO>();
+                SuccessRespone<UserDTO> successRespone = new SuccessRespone<UserDTO>();
                 ErrorRespone errorRes = new ErrorRespone();
                 IdentityUser user = await _userManager.FindByIdAsync(id);
                 if (user == null)
@@ -152,8 +160,8 @@ namespace IdentityConfigurationSample.Controllers
                     return BadRequest(errorRes);
                 } 
                 UserDTO userData = _mapper.Map<UserDTO>(user);
-                successRes.data = userData;
-                return Ok(successRes);
+                successRespone.data = userData;
+                return Ok(successRespone);
             }
             catch (Exception ex)
             {
@@ -166,18 +174,18 @@ namespace IdentityConfigurationSample.Controllers
         [HttpGet("AllUsers")]
         //_myAllowSpecificOrigins
         
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "Admin")]
         //[AllowAnonymous]
         public async Task<IActionResult> GetAllUser()
         {
             try
             {
-                SuccessRespone<IEnumerable<UserDTO>> successRes = new SuccessRespone<IEnumerable<UserDTO>>();
+                SuccessRespone<IEnumerable<UserDTO>> successRespone = new SuccessRespone<IEnumerable<UserDTO>>();
                 //IList<IdentityUser> users = await _userManager.GetUsersInRoleAsync("User");
                 IList<IdentityUser> users =   _userManager.Users.ToList();
                 IEnumerable<UserDTO> result =  _mapper.Map<IEnumerable<UserDTO>>(users);
-                successRes.data = result;
-                return Ok(successRes);
+                successRespone.data = result;
+                return Ok(successRespone);
             }
             catch (Exception ex)
             {
@@ -193,7 +201,7 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                SuccessRespone<DeleteUsersDTO> successRes = new SuccessRespone<DeleteUsersDTO>();
+                SuccessRespone<IEnumerable<UserDTO>> successRespone = new SuccessRespone<IEnumerable<UserDTO>>();
                 ErrorRespone errorRes = new ErrorRespone();
                 List<string> deleteFail = new List<string>();
                 foreach (string id in deleteUsersDTO.Ids)
@@ -206,7 +214,7 @@ namespace IdentityConfigurationSample.Controllers
 
                 }
                 if (deleteFail.Count == 0) 
-                    return Ok(successRes);
+                    return Ok(successRespone);
                 else
                 {
                     //errorRes.Description.Add("can't delete user");
@@ -227,7 +235,7 @@ namespace IdentityConfigurationSample.Controllers
         {
             try
             {
-                SuccessRespone<Tokens> successRes = new SuccessRespone<Tokens>();
+                SuccessRespone<Tokens> successRespone = new SuccessRespone<Tokens>();
                 ErrorRespone errorRes = new ErrorRespone();
                 errorRes.Description = new List<string>();
                 IdentityUser userExist = await _userManager.FindByNameAsync(login.Username);
@@ -236,6 +244,18 @@ namespace IdentityConfigurationSample.Controllers
                     errorRes.Description.Add("username not exist");
                     return BadRequest(errorRes);
                 }
+                //string a = userExist.PasswordHash;
+
+
+                //bool verified = BCrypt.Net.BCrypt.Verify(login.Password, a);
+                //if(verified==true)
+                //{
+                //    return Ok("work");
+                //}
+                //if(verified != true)
+                //{
+                //    return BadRequest("not work");
+                //}
                 bool truePass = await _userManager.CheckPasswordAsync(userExist,login.Password);
                 if (truePass == false)
                 {
@@ -245,11 +265,13 @@ namespace IdentityConfigurationSample.Controllers
                 TokenManager accessTokenGen = new TokenManager( _configuration,_roleManager,_userManager);
                 string refreshToken = accessTokenGen.GenerateRefreshToken();
                 string accessToken = await accessTokenGen.GenerateAccessToken(userExist);
+                IList<string> roles = await _userManager.GetRolesAsync(userExist);
                 Tokens tokens = new Tokens();
                 tokens.accessToken = accessToken;
                 tokens.refreshToken = refreshToken;
-                successRes.data = tokens;
-                return Ok(successRes);
+                tokens.Roles = roles;
+                successRespone.data = tokens;
+                return Ok(successRespone);
             }
             catch (Exception ex)
             {

@@ -36,7 +36,7 @@ namespace IdentityConfigurationSample
             string connectionString = Configuration["ConnectionStrings:connectionString"];
             services.AddDbContext<ApplicationDbContext>
                 (options => options.UseMySql(connectionString, MySqlServerVersion.LatestSupportedServerVersion, b => b.MigrationsAssembly("IdentityConfigurationSample")));
-
+            
             services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders();
             services.AddAutoMapper(typeof(Startup));

@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace IdentityConfigurationSample.Res
 {
-    public class SuccessRespone<T> : ISuccessResponse<T>
+    public  class SuccessRespone<T>
     {
-        public string status { get  { return "SUCCESS"; } set { } }
-        public T data { get; set; }
+        public  string status { get  { return "SUCCESS"; } set { } }
+        public  T data { get; set; }
     }
 }
