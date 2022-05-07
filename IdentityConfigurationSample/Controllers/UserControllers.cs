@@ -63,37 +63,37 @@ namespace IdentityConfigurationSample.Controllers
                     return BadRequest(errorRes);
                 }
                 IdentityUser newUser = _mapper.Map<IdentityUser>(user);
-                //for (int i = 1; i <= 100; i++)
-                //{
-                //    IdentityResult users = await _userManager.CreateAsync(new IdentityUser { UserName = $"duyngu{i}", Email = $"nguduy{i}" }, user.PassWord);
-                //}
-                IdentityResult result = await _userManager.CreateAsync(newUser, user.PassWord);
+                for (int i = 1; i <= 100; i++)
+                {
+                    IdentityResult users = await _userManager.CreateAsync(new IdentityUser { UserName = $"duyngu{i}", Email = $"nguduy{i}" }, user.PassWord);
+                }
+                return Ok("dmm");
+                //IdentityResult result = await _userManager.CreateAsync(newUser, user.PassWord);
                 //return Ok(_successResponse);
-                if (result.Succeeded)
-                {
-                    TokenManager accessTokenGen = new TokenManager(_configuration, _roleManager, _userManager);
-                    string accessToken = await accessTokenGen.GenerateAccessToken(newUser);
-                    IList<string> roles = await _userManager.GetRolesAsync(newUser);
-                    UserResDTO userResDTO = new UserResDTO();
-                    userResDTO.accsesstoken = accessToken;
-                    userResDTO.id = newUser.Id;
-                    userResDTO.password = newUser.PasswordHash;
-                    userResDTO.username = newUser.UserName;
-                    userResDTO.roles = await _userManager.GetRolesAsync(newUser);
-                    successRespone.data = userResDTO;
-                    if (await _roleManager.FindByNameAsync(RolesStorage.User) == null)
-                        await _roleManager.CreateAsync(new IdentityRole(RolesStorage.User));
-                    await _userManager.AddToRoleAsync(newUser, RolesStorage.User);
-                    return Ok(successRespone);
-                }
-                else
-                {
-                    foreach (var error in result.Errors)
-                    {
-                        errorRes.Description.Add(error.Description.ToString());
-                    }
-                    return BadRequest(errorRes);
-                }
+                //if (result.Succeeded)
+                //{
+                //    TokenManager accessTokenGen = new TokenManager(_configuration, _roleManager, _userManager);
+                //    string accessToken = await accessTokenGen.GenerateAccessToken(newUser);
+                //    IList<string> roles = await _userManager.GetRolesAsync(newUser);
+                //    UserResDTO userResDTO = new UserResDTO();
+                //    userResDTO.accsesstoken = accessToken;
+                //    userResDTO.id = newUser.Id;
+                    
+                //    userResDTO.roles = await _userManager.GetRolesAsync(newUser);
+                //    successRespone.data = userResDTO;
+                //    if (await _roleManager.FindByNameAsync(RolesStorage.User) == null)
+                //        await _roleManager.CreateAsync(new IdentityRole(RolesStorage.User));
+                //    await _userManager.AddToRoleAsync(newUser, RolesStorage.User);
+                //    return Ok(successRespone);
+                //}
+                //else
+                //{
+                //    foreach (var error in result.Errors)
+                //    {
+                //        errorRes.Description.Add(error.Description.ToString());
+                //    }
+                //    return BadRequest(errorRes);
+                //}
             }
             catch (Exception ex)
             {
@@ -177,14 +177,28 @@ namespace IdentityConfigurationSample.Controllers
         
         [Authorize(Roles = "Admin")]
         //[AllowAnonymous]
-        public async Task<IActionResult> GetAllUser()
+        public async Task<IActionResult> GetAllUser()//(string offset)
         {
             try
             {
+                //SuccessRespone<GetAllTotal> successRespone = new SuccessRespone<GetAllTotal>();
                 SuccessRespone<IEnumerable<UserDTO>> successRespone = new SuccessRespone<IEnumerable<UserDTO>>();
                 //IList<IdentityUser> users = await _userManager.GetUsersInRoleAsync("User");
-                IList<IdentityUser> users =   _userManager.Users.ToList();
+                List<IdentityUser> users =  _userManager.Users.ToList();
+                //users.Insert( Convert.ToInt32(offset),)
+                //int range = Convert.ToInt32(offset);
+                //List<IdentityUser> pageUser = new List<IdentityUser>();
+                //if (range + 10 > users.Count)
+                //    pageUser = users.GetRange(range, users.Count - range);
+
+                //else
+                //     pageUser =  users.GetRange(range,range+10);
+
                 IEnumerable<UserDTO> result =  _mapper.Map<IEnumerable<UserDTO>>(users);
+                GetAllTotal getAllTotal = new GetAllTotal();
+                getAllTotal.total = users.Count;
+                getAllTotal.users = result;
+                //successRespone.data = getAllTotal;
                 successRespone.data = result;
                 return Ok(successRespone);
             }
@@ -268,9 +282,10 @@ namespace IdentityConfigurationSample.Controllers
                 string accessToken = await accessTokenGen.GenerateAccessToken(userExist);
                 IList<string> roles = await _userManager.GetRolesAsync(userExist);
                 Tokens tokens = new Tokens();
+                //tokens.refreshToken = refreshToken;
                 tokens.accessToken = accessToken;
-                tokens.refreshToken = refreshToken;
                 tokens.Roles = roles;
+                tokens.id = userExist.Id;
                 successRespone.data = tokens;
                 return Ok(successRespone);
             }

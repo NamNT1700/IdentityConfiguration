@@ -14,8 +14,9 @@ namespace IdentityConfigurationSample.Data
         //[Key]
         //public Guid id { get; set; }
         public string accessToken { get; set; }
-        public string refreshToken { get; set; }
+        //public string refreshToken { get; set; }
         public IList<string> Roles { get; set; }
+        public string id { get; set; }
 
         //public string UserId { get; set; }
         //public IdentityUser identityUser { get; set; } 
